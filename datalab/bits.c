@@ -206,6 +206,10 @@ int tmin(void)
  */
 int allOddBits(int x)
 {
+  int mask = 0xAA;
+  mask = mask | mask << 8;
+  mask = mask | mask << 16;
+  return !((x & mask) ^ mask);
   return 2;
 }
 /*
