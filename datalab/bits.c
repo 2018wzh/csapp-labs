@@ -294,8 +294,9 @@ int logicalNeg(int x)
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x)
+int howManyBits(int x) // popcnt
 {
+  int sign = x >> 31; // x<0
   return 0;
 }
 // float
@@ -312,6 +313,12 @@ int howManyBits(int x)
  */
 unsigned floatScale2(unsigned uf)
 {
+  int exp = (uf >> 23) & 0xFF; // exp part
+  if (exp == 0xFF) // inf
+    return uf;
+  if (exp == 0) // denorm
+    return (uf & 0x7FFFFF) << 1 | (uf & 0x80000000);
+  return uf + (1 << 23);
   return 2;
 }
 /*
