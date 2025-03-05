@@ -221,6 +221,7 @@ int allOddBits(int x)
  */
 int negate(int x)
 {
+  return ~x + 1;
   return 2;
 }
 // 3
