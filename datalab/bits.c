@@ -278,6 +278,8 @@ int isLessOrEqual(int x, int y)
  */
 int logicalNeg(int x)
 {
+  int a = x | (~x + 1); // x|-x
+  return (a >> 31) + 1; // x|-x<0
   return 2;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
