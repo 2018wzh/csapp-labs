@@ -261,6 +261,10 @@ int conditional(int x, int y, int z)
  */
 int isLessOrEqual(int x, int y)
 {
+  int a = ~x + 1;  //-x
+  int b = a + y;   // y-x
+  int c = b >> 31; // y-x<0
+  return !c;
   return 2;
 }
 // 4
