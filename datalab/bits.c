@@ -234,8 +234,11 @@ int negate(int x)
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x)
+int isAsciiDigit(int x) // 0x30=0b00110000, 0x39=0b00111001
 {
+  int a = x + ~0x30 + 1; // x-0x30
+  int b = 0x39 + ~x + 1; // 0x39-x
+  return !((a >> 31) | (b >> 31));
   return 2;
 }
 /*
