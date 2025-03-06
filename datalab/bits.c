@@ -206,7 +206,7 @@ int tmin(void)
  */
 int allOddBits(int x)
 {
-  int mask = 0xAA;
+  int mask = 0xAA; // 0b10101010
   mask = mask | mask << 8;
   mask = mask | mask << 16;
   return !((x & mask) ^ mask);
@@ -250,6 +250,8 @@ int isAsciiDigit(int x) // 0x30=0b00110000, 0x39=0b00111001
  */
 int conditional(int x, int y, int z)
 {
+  int mask = ~(!x) + 1; // x=0,mask=0xFFFFFFFF;x=1,mask=0x00000000
+  return (~mask & y) | (mask & z);
   return 2;
 }
 /*
@@ -314,7 +316,7 @@ int howManyBits(int x) // popcnt
 unsigned floatScale2(unsigned uf)
 {
   int exp = (uf >> 23) & 0xFF; // exp part
-  if (exp == 0xFF) // inf
+  if (exp == 0xFF)             // inf and nan
     return uf;
   if (exp == 0) // denorm
     return (uf & 0x7FFFFF) << 1 | (uf & 0x80000000);
@@ -335,6 +337,9 @@ unsigned floatScale2(unsigned uf)
  */
 int floatFloat2Int(unsigned uf)
 {
+  int exp = (uf >> 23) & 0xFF; // exp part
+  if (exp == 0xFF)             // inf and nan
+    return 0x80000000u;
   return 2;
 }
 /*
