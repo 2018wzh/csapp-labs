@@ -379,5 +379,11 @@ int floatFloat2Int(unsigned uf)
  */
 unsigned floatPower2(int x)
 {
-  return 2;
+  if (x < -149) // too small for denormal
+    return 0;
+  if (x > 127) // too large, return +inf
+    return 0xFF << 23;
+  if (x < -126) // denormal
+    return 1 << (x + 149);
+  return (x + 127) << 23; // normal case
 }
