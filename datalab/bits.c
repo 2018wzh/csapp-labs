@@ -288,7 +288,23 @@ int logicalNeg(int x)
  */
 int howManyBits(int x) // popcnt
 {
-  return 0;
+  int sign = x >> 31;
+  int b16, b8, b4, b2, b1, b0;
+  x = (sign & ~x) | (~sign & x);
+
+  b16 = !!(x >> 16) << 4;
+  x = x >> b16;
+  b8 = !!(x >> 8) << 3;
+  x = x >> b8;
+  b4 = !!(x >> 4) << 2;
+  x = x >> b4;
+  b2 = !!(x >> 2) << 1;
+  x = x >> b2;
+  b1 = !!(x >> 1);
+  x = x >> b1;
+  b0 = x;
+
+  return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 // float
 /*
