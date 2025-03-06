@@ -191,7 +191,7 @@ int bitXor(int x, int y)
  */
 int tmin(void)
 {
-  return 1 << 31;
+  return 1 << 31; // 0x80000000
 }
 // 2
 /*
@@ -204,7 +204,7 @@ int tmin(void)
  */
 int allOddBits(int x)
 {
-  int mask = 0xAA | 0xAA << 8 | 0xAA << 16 | 0xAA << 24; // 0xAAAAAAAA
+  int mask = 0xAA | 0xAA << 8 | 0xAA << 16 | 0xAA << 24; // 0xAAAAAAAA 0b10101010101010101010101010101010
   return !((x & mask) ^ mask);
 }
 /*
@@ -228,7 +228,7 @@ int negate(int x)
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) // 0x30=0b00110000, 0x39=0b00111001
+int isAsciiDigit(int x)
 {
   int a = x + ~0x30 + 1; // x-0x30
   int b = 0x39 + ~x + 1; // 0x39-x
@@ -286,12 +286,11 @@ int logicalNeg(int x)
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) // popcnt
+int howManyBits(int x)
 {
   int sign = x >> 31;
   int b16, b8, b4, b2, b1, b0;
   x = (sign & ~x) | (~sign & x);
-
   b16 = !!(x >> 16) << 4;
   x = x >> b16;
   b8 = !!(x >> 8) << 3;
@@ -303,7 +302,6 @@ int howManyBits(int x) // popcnt
   b1 = !!(x >> 1);
   x = x >> b1;
   b0 = x;
-
   return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 // float
@@ -354,12 +352,10 @@ int floatFloat2Int(unsigned uf)
   frac = frac | (mask + 1);  // add implicit 1
   if (E > 31)                // too large
     return 0x80000000u;
-
   if (E > 23)
     frac = frac << (E - 23);
   else
     frac = frac >> (23 - E);
-
   if (sign)
     return -frac;
   return frac;
