@@ -167,7 +167,8 @@ int tmin(void)
  */
 int isTmax(int x)
 {
-  return 2;
+  int tmax = (0x7F << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF; // 0x7FFFFFFF
+  return !(x ^ tmax);
 }
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -191,7 +192,6 @@ int allOddBits(int x)
  */
 int negate(int x)
 {
-
   return ~x + 1;
 }
 // 3
