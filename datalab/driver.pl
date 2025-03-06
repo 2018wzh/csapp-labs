@@ -191,7 +191,7 @@ if ($USE_BTEST) {
 	or die "$0: Could not make btest in $tmpdir. $diemsg\n";
 
     # Run btest
-    $status = system("./btest -g -T 30 > btest-zapped.out 2>&1");
+    $status = system("./btest -g > btest-zapped.out 2>&1");
     if ($status != 0) {
 	die "$0: ERROR: btest check failed. $diemsg\n";
     }
