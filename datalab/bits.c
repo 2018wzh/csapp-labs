@@ -182,7 +182,6 @@ int bitXor(int x, int y)
   int a = x & y;   // 100
   int b = ~x & ~y; // 011&010=010
   return ~a & ~b;  // 001
-  return 2;
 }
 /*
  * tmin - return minimum two's complement integer
@@ -193,7 +192,6 @@ int bitXor(int x, int y)
 int tmin(void)
 {
   return 1 << 31;
-  return 2;
 }
 // 2
 /*
@@ -206,11 +204,8 @@ int tmin(void)
  */
 int allOddBits(int x)
 {
-  int mask = 0xAA; // 0b10101010
-  mask = mask | mask << 8;
-  mask = mask | mask << 16;
+  int mask = 0xAA | 0xAA << 8 | 0xAA << 16 | 0xAA << 24; // 0xAAAAAAAA
   return !((x & mask) ^ mask);
-  return 2;
 }
 /*
  * negate - return -x
@@ -222,7 +217,6 @@ int allOddBits(int x)
 int negate(int x)
 {
   return ~x + 1;
-  return 2;
 }
 // 3
 /*
@@ -239,7 +233,6 @@ int isAsciiDigit(int x) // 0x30=0b00110000, 0x39=0b00111001
   int a = x + ~0x30 + 1; // x-0x30
   int b = 0x39 + ~x + 1; // 0x39-x
   return !((a >> 31) | (b >> 31));
-  return 2;
 }
 /*
  * conditional - same as x ? y : z
@@ -252,7 +245,6 @@ int conditional(int x, int y, int z)
 {
   int mask = ~(!x) + 1; // x=0,mask=0xFFFFFFFF;x=1,mask=0x00000000
   return (~mask & y) | (mask & z);
-  return 2;
 }
 /*
  * isLessOrEqual - if x <= y  then return 1, else return 0
@@ -267,7 +259,6 @@ int isLessOrEqual(int x, int y)
   int b = a + y;   // y-x
   int c = b >> 31; // y-x<0
   return !c;
-  return 2;
 }
 // 4
 /*
@@ -282,7 +273,6 @@ int logicalNeg(int x)
 {
   int a = x | (~x + 1); // x|-x
   return (a >> 31) + 1; // x|-x<0
-  return 2;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -298,7 +288,6 @@ int logicalNeg(int x)
  */
 int howManyBits(int x) // popcnt
 {
-  int sign = x >> 31; // x<0
   return 0;
 }
 // float
@@ -315,13 +304,13 @@ int howManyBits(int x) // popcnt
  */
 unsigned floatScale2(unsigned uf)
 {
-  int exp = (uf >> 23) & 0xFF; // exp part
-  if (exp == 0xFF)             // inf and nan
+  int exp = (uf >> 23) & 0xFF;                  // exp part
+  int mask = (0x7F << 16) | (0xFF << 8) | 0xFF; // 0x7FFFFF
+  if (exp == 0xFF)                              // inf and nan
     return uf;
   if (exp == 0) // denorm
-    return (uf & 0x7FFFFF) << 1 | (uf & 0x80000000);
+    return (uf & mask) << 1 | (uf & (1 << 31));
   return uf + (1 << 23);
-  return 2;
 }
 /*
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -337,10 +326,27 @@ unsigned floatScale2(unsigned uf)
  */
 int floatFloat2Int(unsigned uf)
 {
-  int exp = (uf >> 23) & 0xFF; // exp part
-  if (exp == 0xFF)             // inf and nan
+  int sign = uf >> 31;
+  int exp = (uf >> 23) & 0xFF;                  // exp part
+  int mask = (0x7F << 16) | (0xFF << 8) | 0xFF; // 0x7FFFFF
+  int frac = uf & mask;                         // fraction part
+  int E = exp - 127;
+  if (exp == 0xFF) // inf and nan
     return 0x80000000u;
-  return 2;
+  if (exp == 0 || exp < 127) // denorm or too small
+    return 0;                // get actual exponent
+  frac = frac | (mask + 1);  // add implicit 1
+  if (E > 31)                // too large
+    return 0x80000000u;
+
+  if (E > 23)
+    frac = frac << (E - 23);
+  else
+    frac = frac >> (23 - E);
+
+  if (sign)
+    return -frac;
+  return frac;
 }
 /*
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
