@@ -229,10 +229,11 @@ int conditional(int x, int y, int z)
  */
 int isLessOrEqual(int x, int y)
 {
-  int signx = x >> 31;                                       // sign of x
-  int signy = y >> 31;                                       // sign of y
-  int signdiff = signx & !signy;                             // different signs
-  int samesign = !(signx ^ signy) & !((y + (~x + 1)) >> 31); // y-x>=0
+  int signx = x >> 31;                              // sign of x
+  int signy = y >> 31;                              // sign of y
+  int signdiff = signx & !signy;                    // different signs
+  int z = ~x + 1;                                   // -x
+  int samesign = !(signx ^ signy) & !(y + z >> 31); // y-x>=0
   return signdiff | samesign;
 }
 // 4
