@@ -181,7 +181,8 @@ int isTmax(int x)
  */
 int allOddBits(int x)
 {
-  int mask = 0xAA | 0xAA << 8 | 0xAA << 16 | 0xAA << 24; // 0xAAAAAAAA 0b10101010101010101010101010101010
+  int mask = 0xAA | 0xAA << 8 | 0xAA << 16 |
+             0xAA << 24; // 0xAAAAAAAA 0b10101010101010101010101010101010
   return !((x & mask) ^ mask);
 }
 /*
@@ -191,15 +192,11 @@ int allOddBits(int x)
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x)
-{
-  return ~x + 1;
-}
+int negate(int x) { return ~x + 1; }
 // 3
 /*
- * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0' to '9')
- *   Example: isAsciiDigit(0x35) = 1.
- *            isAsciiDigit(0x3a) = 0.
+ * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0'
+ * to '9') Example: isAsciiDigit(0x35) = 1. isAsciiDigit(0x3a) = 0.
  *            isAsciiDigit(0x05) = 0.
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 15
@@ -232,10 +229,11 @@ int conditional(int x, int y, int z)
  */
 int isLessOrEqual(int x, int y)
 {
-  int a = ~x + 1;  //-x
-  int b = a + y;   // y-x
-  int c = b >> 31; // y-x<0
-  return !c;
+  int signx = x >> 31;                                       // sign of x
+  int signy = y >> 31;                                       // sign of y
+  int signdiff = signx & !signy;                             // different signs
+  int samesign = !(signx ^ signy) & !((y + (~x + 1)) >> 31); // y-x>=0
+  return signdiff | samesign;
 }
 // 4
 /*
