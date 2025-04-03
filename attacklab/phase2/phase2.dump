@@ -6,8 +6,8 @@ Disassembly of section .text:
 
 0000000000000000 <main>:
    0:	48 c7 c7 fa 97 b9 59 	mov    $0x59b997fa,%rdi
-   7:	48 c7 c0 ec 17 40 00 	mov    $0x4017ec,%rax
-   e:	ff e0                	jmp    *%rax
+   7:	68 ec 17 40 00       	push   $0x4017ec
+   c:	c3                   	ret
 
 Disassembly of section .note.gnu.property:
 
