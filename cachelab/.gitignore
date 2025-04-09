@@ -1,0 +1,9 @@
+*.o
+*.tar
+csim
+test-trans
+tracegen
+trace.all
+trace.f*
+.csim_results
+.marker
