@@ -134,7 +134,8 @@ int main(int argc, char *argv[])
         switch (trace.operation)
         {
         case INSTRUCTION:
-            continue;
+            res = IGNORE;
+            break;
         case LOAD:
             res |= accessCache(cache, addr, size);
             break;
@@ -146,6 +147,8 @@ int main(int argc, char *argv[])
             res |= accessCache(cache, addr, size);
             break;
         }
+        if (res == IGNORE)
+            continue;
 #ifdef DEBUG
         printDebug(cache);
 #endif
@@ -238,11 +241,11 @@ bool readTrace(FILE *fp, Trace *trace)
 Result accessCache(Cache *cache, uint64_t addr, uint64_t size)
 {
     Result res = 0;
-    for (uint64_t offset = 0; offset < size; offset++)
-    {
-        uint64_t block_addr = addr + offset;
-        res |= accessBlock(cache, block_addr);
-    }
+    uint64_t mask = ~((1 << cache->b) - 1);
+    uint64_t block_addr = addr & mask;
+    // Access the block in the cache
+    for (uint64_t offset = 0; offset < size; offset += (1 << cache->b))
+        res |= accessBlock(cache, block_addr + offset);
     return res;
 }
 Result accessBlock(Cache *cache, uint64_t addr)
