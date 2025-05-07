@@ -7,32 +7,39 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <stdint.h>
 
-#define NO_CACHE
-typedef struct Block
+#define MAX_ADDRESS_SIZE 64
+typedef struct Node
 {
-    void *data;
-} Block;
-typedef struct Line
+    struct Node *next;
+    struct Node *prev;
+    uint64_t index;
+} Node;
+typedef struct LRU
 {
-    bool valid;
-    void *tags;
-    Block *blocks;
-} CacheLine;
-typedef struct Set
-{
-    CacheLine *lines;
-} CacheSet;
+    Node *head, *tail;
+    uint64_t size; // Number of valid lines in the set
+} LRU;
 typedef struct Cache
 {
-    CacheSet *sets;
-    int s, E, b;
+    LRU *sets;
+    uint64_t t; // Number of tag bits
+    uint64_t s; // Number of set index bits
+    uint64_t E; // Number of lines per set
+    uint64_t b; // Number of block offset bits
 } Cache;
+typedef enum Operation
+{
+    LOAD = 'L',
+    STORE = 'S',
+    MODIFY = 'M',
+    INSTRUCTION = 'I',
+} Operation;
 typedef struct Trace
 {
-    char operation;
-    unsigned long address;
-    int size;
+    Operation operation;
+    uint64_t address, size;
 } Trace;
 typedef enum Result
 {
@@ -41,7 +48,8 @@ typedef enum Result
     EVICTION = 1 << 3,
     IGNORE = 1 << 4,
 } Result;
-const char help[] = "\
+const char help[] = {
+    "\
 Usage: ./csim [-hv] -s <num> -E <num> -b <num> -t <file>\n\
 Options:\n\
   -h         Print this help message.\n\
@@ -54,13 +62,20 @@ Options:\n\
 Examples:\n\
   linux>  ./csim -s 4 -E 1 -b 4 -t traces/yi.trace\n\
   linux>  ./csim -v -s 8 -E 2 -b 4 -t traces/yi.trace\n\
-";
-Cache *initCache(int s, int E, int b);
-void freeCache(Cache *cache);
-void printHelp();
-void printResult(Result op, Trace trace);
-bool readTrace(FILE *fp, Trace *traces);
-Result accessCache(Cache *cache, Trace trace);
+"};
+Cache *initCache(int s, int E, int b);                          // Initialize cache
+void freeCache(Cache *cache);                                   // Free cache
+void printHelp();                                               // Print help message
+void printResult(Result op, Trace trace);                       // Print result
+bool readTrace(FILE *fp, Trace *traces);                        // Read trace file
+void insertHead(LRU *lru, uint64_t addr);                       // Insert node at head of LRU
+void removeTail(LRU *lru);                                      // Remove tail node from LRU
+void updateLRU(LRU *lru, Node *node);                           // Update LRU list
+void freeLRU(LRU *lru);                                         // Free LRU list
+Node *findLRU(LRU *lru, uint64_t index);                        // Find node in LRU
+Result accessBlock(Cache *cache, uint64_t addr);                // Access block in cache
+Result accessCache(Cache *cache, uint64_t addr, uint64_t size); // Access cache
+void printDebug(Cache *cache);                                  // Print cache state
 int main(int argc, char *argv[])
 {
     int s, E, b;
@@ -98,6 +113,12 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    if (!s || !E || !b || !tracefile)
+    {
+        fprintf(stderr, "%s: Missing required command line argument\n", *argv);
+        printHelp();
+        return 1;
+    }
     trace_fp = fopen(tracefile, "r");
     if (trace_fp == NULL)
     {
@@ -107,16 +128,34 @@ int main(int argc, char *argv[])
     cache = initCache(s, E, b);
     while (readTrace(trace_fp, &trace))
     {
-        if (trace.operation == 'I')
-            continue;
-        Result op = accessCache(cache, trace);
+        Result res = 0;
+        uint64_t addr = trace.address;
+        uint64_t size = trace.size;
+        switch (trace.operation)
+        {
+        case INSTRUCTION:
+            break;
+        case LOAD:
+            res |= accessCache(cache, addr, size);
+            break;
+        case STORE:
+            res |= accessCache(cache, addr, size);
+            break;
+        case MODIFY:
+            res |= accessCache(cache, addr, size);
+            res |= accessCache(cache, addr, size);
+            break;
+        }
+#ifdef DEBUG
+        printDebug(cache);
+#endif
         if (verbose)
-            printResult(op, trace);
-        if (op & HIT)
+            printResult(res, trace);
+        if (res & HIT)
             hits++;
-        if (op & MISS)
+        if (res & MISS)
             misses++;
-        if (op & EVICTION)
+        if (res & EVICTION)
             evictions++;
     }
     printSummary(hits, misses, evictions);
@@ -130,7 +169,7 @@ void printHelp()
 }
 void printResult(Result op, Trace trace)
 {
-    printf("%c %lx,%d ", trace.operation, trace.address, trace.size);
+    printf("%c %lx,%ld ", trace.operation, trace.address, trace.size);
     if (op & MISS)
         printf("miss ");
     if (op & EVICTION)
@@ -142,34 +181,25 @@ void printResult(Result op, Trace trace)
 Cache *initCache(int s, int E, int b)
 {
     Cache *cache = malloc(sizeof(Cache));
-    cache->sets = malloc((1 << s) * sizeof(CacheSet));
+    cache->sets = malloc((1 << s) * sizeof(LRU));
     for (int i = 0; i < (1 << s); i++)
     {
-        cache->sets[i].lines = malloc(E * sizeof(CacheLine));
-        for (int j = 0; j < E; j++)
-        {
-            cache->sets[i].lines[j].valid = false;
-            cache->sets[i].lines[j].tags = NULL;
-            cache->sets[i].lines[j].blocks = malloc((1 << b) * sizeof(Block));
-        }
+        // Allocate memory for lines in each set
+        cache->sets[i].head = NULL;
+        cache->sets[i].tail = NULL;
+        cache->sets[i].size = 0;
     }
     cache->s = s;
     cache->E = E;
     cache->b = b;
+    cache->t = MAX_ADDRESS_SIZE - (s + b);
     return cache;
 }
 void freeCache(Cache *cache)
 {
     int s = cache->s;
-    int E = cache->E;
     for (int i = 0; i < (1 << s); i++)
-    {
-        for (int j = 0; j < E; j++)
-        {
-            free(cache->sets[i].lines[j].blocks);
-        }
-        free(cache->sets[i].lines);
-    }
+        freeLRU(&cache->sets[i]);
     free(cache->sets);
     free(cache);
 }
@@ -178,14 +208,147 @@ bool readTrace(FILE *fp, Trace *trace)
     char buffer[100];
     if (fgets(buffer, sizeof(buffer), fp) != NULL)
     {
-        sscanf(buffer, "%c %lx,%d", &trace->operation, &trace->address, &trace->size);
+        char op;
+        if (buffer[0] == 'I')
+        {
+            trace->operation = INSTRUCTION;
+            return 0;
+        }
+        sscanf(buffer, " %c %lx,%ld", &op, &trace->address, &trace->size);
+        switch (op)
+        {
+        case 'L':
+            trace->operation = LOAD;
+            break;
+        case 'S':
+            trace->operation = STORE;
+            break;
+        case 'M':
+            trace->operation = MODIFY;
+            break;
+        default:
+            return 0;
+        }
         return 1;
     }
     return 0;
 }
-#ifdef NO_CACHE
-Result accessCache(Cache *cache, Trace trace)
+Result accessCache(Cache *cache, uint64_t addr, uint64_t size)
 {
-    return MISS;
+    Result res = 0;
+    for (uint64_t offset = 0; offset < size; offset++)
+    {
+        uint64_t block_addr = addr + offset;
+        res |= accessBlock(cache, block_addr);
+    }
+    return res;
 }
-#endif
+Result accessBlock(Cache *cache, uint64_t addr)
+{
+    uint64_t mask = (1 << cache->s) - 1;
+    uint64_t index = (addr >> cache->b) & mask;   // Index bits
+    uint64_t tag = addr >> (cache->b + cache->s); // Tag bits
+    LRU *set = &cache->sets[index];
+    Result res = 0;
+    Node *node = findLRU(set, tag);
+    if (node != NULL)
+    {
+        res |= HIT;
+        updateLRU(set, node);
+    }
+    else
+    {
+        if (set->size < cache->E)
+        {
+            res |= MISS;
+            insertHead(set, tag);
+        }
+        else
+        {
+            res |= MISS | EVICTION;
+            removeTail(set);
+            insertHead(set, tag);
+        }
+    }
+    return res;
+}
+void insertHead(LRU *lru, uint64_t val)
+{
+    Node *node = malloc(sizeof(Node));
+    node->index = val;
+    node->next = lru->head;
+    node->prev = NULL;
+    if (lru->head != NULL)
+        lru->head->prev = node;
+    lru->head = node;
+    if (lru->tail == NULL)
+        lru->tail = node;
+    lru->size++;
+}
+void removeTail(LRU *lru)
+{
+    if (lru->tail == NULL)
+        return;
+    Node *node = lru->tail;
+    lru->tail = node->prev;
+    if (lru->tail != NULL)
+        lru->tail->next = NULL;
+    else
+        lru->head = NULL;
+    free(node);
+    lru->size--;
+}
+void updateLRU(LRU *lru, Node *node)
+{
+    if (node == lru->head)
+        return;
+    if (node == lru->tail)
+        lru->tail = node->prev;
+    if (node->prev != NULL)
+        node->prev->next = node->next;
+    if (node->next != NULL)
+        node->next->prev = node->prev;
+    node->next = lru->head;
+    node->prev = NULL;
+    if (lru->head != NULL)
+        lru->head->prev = node;
+    lru->head = node;
+}
+void freeLRU(LRU *lru)
+{
+    Node *node = lru->head;
+    while (node != NULL)
+    {
+        Node *temp = node;
+        node = node->next;
+        free(temp);
+    }
+}
+Node *findLRU(LRU *lru, uint64_t val)
+{
+    Node *node = lru->head;
+
+    while (node != NULL)
+    {
+        if (node->index == val)
+            return node;
+        node = node->next;
+    }
+    return NULL;
+}
+void printDebug(Cache *cache)
+{
+    for (int i = 0; i < (1 << cache->s); i++)
+    {
+        if (cache->sets[i].size == 0)
+            continue;
+        printf("Set %d: ", i);
+        Node *node = cache->sets[i].head;
+        while (node != NULL)
+        {
+            printf("%lx ", node->index);
+            node = node->next;
+        }
+        printf("\n");
+    }
+}
