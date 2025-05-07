@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
         switch (trace.operation)
         {
         case INSTRUCTION:
-            break;
+            continue;
         case LOAD:
             res |= accessCache(cache, addr, size);
             break;
@@ -169,6 +169,8 @@ void printHelp()
 }
 void printResult(Result op, Trace trace)
 {
+    if (op == IGNORE)
+        return;
     printf("%c %lx,%ld ", trace.operation, trace.address, trace.size);
     if (op & MISS)
         printf("miss ");
@@ -212,7 +214,7 @@ bool readTrace(FILE *fp, Trace *trace)
         if (buffer[0] == 'I')
         {
             trace->operation = INSTRUCTION;
-            return 0;
+            return 1;
         }
         sscanf(buffer, " %c %lx,%ld", &op, &trace->address, &trace->size);
         switch (op)
