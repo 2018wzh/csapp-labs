@@ -7,3 +7,4 @@ trace.all
 trace.f*
 .csim_results
 .marker
+trace.tmp
