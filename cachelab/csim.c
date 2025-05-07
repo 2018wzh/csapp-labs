@@ -43,10 +43,13 @@ typedef struct Trace
 } Trace;
 typedef enum Result
 {
-    HIT = 1 << 1,
+    HIT = 1,
+    DUAL_HIT = 1 << 1,
     MISS = 1 << 2,
-    EVICTION = 1 << 3,
-    IGNORE = 1 << 4,
+    DUAL_MISS = 1 << 3,
+    EVICTION = 1 << 4,
+    DUAL_EVICTION = 1 << 5,
+    IGNORE = 1 << 6,
 } Result;
 const char help[] = {
     "\
@@ -137,14 +140,14 @@ int main(int argc, char *argv[])
             res = IGNORE;
             break;
         case LOAD:
-            res |= accessCache(cache, addr, size);
+            res += accessCache(cache, addr, size);
             break;
         case STORE:
-            res |= accessCache(cache, addr, size);
+            res += accessCache(cache, addr, size);
             break;
         case MODIFY:
-            res |= accessCache(cache, addr, size);
-            res |= accessCache(cache, addr, size);
+            res += accessCache(cache, addr, size);
+            res += accessCache(cache, addr, size);
             break;
         }
         if (res == IGNORE)
@@ -156,10 +159,16 @@ int main(int argc, char *argv[])
             printResult(res, trace);
         if (res & HIT)
             hits++;
+        if (res & DUAL_HIT)
+            hits += 2;
         if (res & MISS)
             misses++;
+        if (res & DUAL_MISS)
+            misses += 2;
         if (res & EVICTION)
             evictions++;
+        if (res & DUAL_EVICTION)
+            evictions += 2;
     }
     printSummary(hits, misses, evictions);
     freeCache(cache);
@@ -177,10 +186,16 @@ void printResult(Result op, Trace trace)
     printf("%c %lx,%ld ", trace.operation, trace.address, trace.size);
     if (op & MISS)
         printf("miss ");
+    if (op & DUAL_MISS)
+        printf("miss miss ");
     if (op & EVICTION)
         printf("eviction ");
+    if (op & DUAL_EVICTION)
+        printf("eviction eviction ");
     if (op & HIT)
         printf("hit ");
+    if (op & DUAL_HIT)
+        printf("hit hit ");
     printf("\n");
 }
 Cache *initCache(int s, int E, int b)
