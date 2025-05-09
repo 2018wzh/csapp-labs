@@ -24,16 +24,16 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
     if (M == 32 && N == 32) // 32x32
     {
-        int i, j;
+        int i, j, k, l;
         // 8x8 tile
         for (i = 0; i < N; i += 8)
             for (j = 0; j < M; j += 8)
             {
-                for (int k = 0; k < 8; k++)
+                for (k = 0; k < 8; k++)
                 {
                     int t0, t1, t2, t3, t4, t5, t6, t7;
                     // Read 8 elements from A
-                    t0 = A[i + k][j];
+                    t0 = A[i + k][j + 0];
                     t1 = A[i + k][j + 1];
                     t2 = A[i + k][j + 2];
                     t3 = A[i + k][j + 3];
@@ -42,7 +42,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                     t6 = A[i + k][j + 6];
                     t7 = A[i + k][j + 7];
                     // Write 8 elements to B
-                    B[j + k][i] = t0;
+                    B[j + k][i + 0] = t0;
                     B[j + k][i + 1] = t1;
                     B[j + k][i + 2] = t2;
                     B[j + k][i + 3] = t3;
@@ -52,28 +52,79 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                     B[j + k][i + 7] = t7;
                 }
                 // Transpose the 8x8 block
-                for (int k = 0; k < 8; k++)
-                    for (int l = 0; l < k; l++)
+                for (k = 0; k < 8; k++)
+                {
+                    for (l = 0; l < k; l++)
                     {
                         int t;
                         t = B[j + k][i + l];
                         B[j + k][i + l] = B[j + l][i + k];
                         B[j + l][i + k] = t;
                     }
+                }
             }
     }
     else if (M == 64 && N == 64) // 64x64
     {
-        int i, j, tmp;
-
-        for (i = 0; i < N; i++)
-        {
-            for (j = 0; j < M; j++)
+        int i, j, k;
+        // 8x8 tile
+        for (i = 0; i < N; i += 8)
+            for (j = 0; j < M; j += 8)
             {
-                tmp = A[i][j];
-                B[j][i] = tmp;
+                int t0, t1, t2, t3, t4, t5, t6, t7;
+                // Left upper
+                for (k = 0; k < 4; k++)
+                {
+                    t0 = A[i + k][j + 0];
+                    t1 = A[i + k][j + 1];
+                    t2 = A[i + k][j + 2];
+                    t3 = A[i + k][j + 3];
+                    t4 = A[i + k][j + 4];
+                    t5 = A[i + k][j + 5];
+                    t6 = A[i + k][j + 6];
+                    t7 = A[i + k][j + 7];
+                    B[j + 0][i + k] = t0;
+                    B[j + 1][i + k] = t1;
+                    B[j + 2][i + k] = t2;
+                    B[j + 3][i + k] = t3;
+                    B[j + 0][i + 4 + k] = t4;
+                    B[j + 1][i + 4 + k] = t5;
+                    B[j + 2][i + 4 + k] = t6;
+                    B[j + 3][i + 4 + k] = t7;
+                }
+                // Left lower and right upper
+                for (k = 0; k < 4; k++)
+                {
+                    t0 = A[i + 4][j + k];
+                    t1 = A[i + 5][j + k];
+                    t2 = A[i + 6][j + k];
+                    t3 = A[i + 7][j + k];
+                    t4 = B[j + k][i + 4];
+                    t5 = B[j + k][i + 5];
+                    t6 = B[j + k][i + 6];
+                    t7 = B[j + k][i + 7];
+                    B[j + k][i + 4] = t0;
+                    B[j + k][i + 5] = t1;
+                    B[j + k][i + 6] = t2;
+                    B[j + k][i + 7] = t3;
+                    B[j + k + 4][i + 0] = t4;
+                    B[j + k + 4][i + 1] = t5;
+                    B[j + k + 4][i + 2] = t6;
+                    B[j + k + 4][i + 3] = t7;
+                }
+                // Right lower
+                for (k = 0; k < 4; k++)
+                {
+                    t0 = A[i + 4 + k][j + 4 + 0];
+                    t1 = A[i + 4 + k][j + 4 + 1];
+                    t2 = A[i + 4 + k][j + 4 + 2];
+                    t3 = A[i + 4 + k][j + 4 + 3];
+                    B[j + 4 + 0][i + 4 + k] = t0;
+                    B[j + 4 + 1][i + 4 + k] = t1;
+                    B[j + 4 + 2][i + 4 + k] = t2;
+                    B[j + 4 + 3][i + 4 + k] = t3;
+                }
             }
-        }
     }
     else if (M == 61 && N == 67) // 61x67
     {
