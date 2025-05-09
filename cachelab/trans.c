@@ -128,18 +128,15 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     }
     else if (M == 61 && N == 67) // 61x67
     {
-        int i, j, tmp;
-
-        for (i = 0; i < N; i++)
-        {
-            for (j = 0; j < M; j++)
-            {
-                tmp = A[i][j];
-                B[j][i] = tmp;
-            }
-        }
+        int i, j, k, l;
+        // 16x16 tile
+        for (i = 0; i < N; i += 16)
+            for (j = 0; j < M; j += 16)
+                for (k = i; k < i + 16 && k < N; k++)
+                    for (l = j; l < j + 16 && l < M; l++)
+                        B[l][k] = A[k][l];
     }
-    else
+    else // general case
     {
         int i, j, tmp;
 
