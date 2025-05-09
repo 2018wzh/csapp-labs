@@ -66,19 +66,24 @@ Examples:\n\
   linux>  ./csim -s 4 -E 1 -b 4 -t traces/yi.trace\n\
   linux>  ./csim -v -s 8 -E 2 -b 4 -t traces/yi.trace\n\
 "};
-Cache *initCache(int s, int E, int b);                          // Initialize cache
-void freeCache(Cache *cache);                                   // Free cache
-void printHelp();                                               // Print help message
-void printResult(Result op, Trace trace);                       // Print result
-bool readTrace(FILE *fp, Trace *traces);                        // Read trace file
-void insertHead(LRU *lru, uint64_t addr);                       // Insert node at head of LRU
-void removeTail(LRU *lru);                                      // Remove tail node from LRU
-void updateLRU(LRU *lru, Node *node);                           // Update LRU list
-void freeLRU(LRU *lru);                                         // Free LRU list
-Node *findLRU(LRU *lru, uint64_t index);                        // Find node in LRU
+// Print funcs
+void printDebug(Cache *cache);            // Print cache state
+void printHelp();                         // Print help message
+void printResult(Result op, Trace trace); // Print result
+// cache funcs
 Result accessBlock(Cache *cache, uint64_t addr);                // Access block in cache
 Result accessCache(Cache *cache, uint64_t addr, uint64_t size); // Access cache
-void printDebug(Cache *cache);                                  // Print cache state
+void freeCache(Cache *cache);                                   // Free cache
+Cache *initCache(int s, int E, int b);                          // Initialize cache
+// LRU funcs
+Node *findNode(LRU *lru, uint64_t index); // Find node in LRU
+void freeLRU(LRU *lru);                   // Free LRU list
+void insertHead(LRU *lru, uint64_t addr); // Insert node at head of LRU
+void removeTail(LRU *lru);                // Remove tail node from LRU
+void updateLRU(LRU *lru, Node *node);     // Update LRU list
+// trace funcs
+bool readTrace(FILE *fp, Trace *traces); // Read trace file
+
 int main(int argc, char *argv[])
 {
     int s, E, b;
@@ -270,7 +275,7 @@ Result accessBlock(Cache *cache, uint64_t addr)
     uint64_t tag = addr >> (cache->b + cache->s); // Tag bits
     LRU *set = &cache->sets[index];
     Result res = 0;
-    Node *node = findLRU(set, tag);
+    Node *node = findNode(set, tag);
     if (node != NULL)
     {
         res |= HIT;
@@ -344,7 +349,7 @@ void freeLRU(LRU *lru)
         free(temp);
     }
 }
-Node *findLRU(LRU *lru, uint64_t val)
+Node *findNode(LRU *lru, uint64_t val)
 {
     Node *node = lru->head;
 
